@@ -6,15 +6,11 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.Point;
-import android.graphics.Rect;
-import android.graphics.RectF;
-import android.graphics.drawable.shapes.OvalShape;
 import android.util.Log;
 import android.view.View;
 
 import java.util.Calendar;
 
-import static android.graphics.Color.YELLOW;
 import static java.lang.Math.min;
 import static java.lang.Math.max;
 import static android.graphics.Color.rgb;
@@ -27,10 +23,21 @@ public class ClockView extends View {
     Paint paint;
     boolean initialized = false;
 
+    int minSecondRedLevel = 227;
+    int minSecondGreenLevel = 229;
+    int minSecondBlueLevel = 0;
+    int maxSecondRedLevel = 240;
+    int maxSecondGreenLevel = 242;
+    int maxSecondBlueLevel = 150;
+
+    int secondRedAnimationInterval = 1;
+    int secondGreenAnimationInterval = 1;
+    int secondBlueAnimationInterval = 4;
+
     int secondRed = 0;
     int secondBlue = 0;
     int secondGreen = 0;
-    boolean secondAnimationForward = true;
+    boolean secondAnimationForward;
 
     int maxFirstLevelRed = 158;
     int maxFirstLevelGreen = 199;
@@ -43,11 +50,17 @@ public class ClockView extends View {
     int minuteBlue = 0;
     int minuteGreen = 0;
     boolean minuteAnimateForward = false;
+    boolean alphaColorAnimation = false;
 
     int hourRed = 0;
     int hourBlue = 0;
     int hourGreen = 0;
     boolean hourAnimateForward = true;
+    boolean sunColorAnimation = false;
+
+    int sunRedAnimationInterval = 20;
+    int sunGreenAnimationInterval = 20;
+    int sunBlueAnimationInterval = 10;
 
     int previousMinute = 0;
     int minute = 0;
@@ -64,11 +77,14 @@ public class ClockView extends View {
     int alphaCentY;
     int alphaCentRadius;
 
+    int sunX;
+    int sunY;
+
     int sunRadius = 200;
 
-    boolean alphaPathAnimation = false;
-    float alphaPathAnimationInterval = 2f;
-    float alphaLineLength = 70f;
+    boolean alphaPathAnimating = false;
+    float alphaPathAnimationInterval = 3.5f;
+    float alphaLineLength = 100f;
     int alphaPathAnimationColor = Color.YELLOW;
     Point alphaPathEnd;
     Point alphaPathStart;
@@ -83,12 +99,17 @@ public class ClockView extends View {
         path = new Path();
         calendar = Calendar.getInstance();
         int am_pm = calendar.get(Calendar.AM_PM);
-        if(am_pm == 1)
-            hourAnimateForward = false;
 
         hour = calendar.get(Calendar.HOUR);
         minute = calendar.get(Calendar.MINUTE);
         previousMinute = minute;
+
+        if(am_pm == 1) {
+            hourAnimateForward = false;
+            hourRed = hour * sunRedAnimationInterval;
+            hourGreen = hour * sunBlueAnimationInterval;
+            hourBlue = hour * sunGreenAnimationInterval;
+        }
 
         if(minute != 0) {
             minuteRed = maxFirstLevelRed - (minute * 2);
@@ -96,21 +117,25 @@ public class ClockView extends View {
             minuteGreen = maxFirstLevelGreen - minute;
         }
 
+        Log.d("CLOCKVIEW", String.format("minuteRed = %d minuteBlue = %d minuteGreen = %d", minuteRed, minuteBlue, minuteGreen));
+
+        secondRed = minSecondRedLevel;
+        secondBlue = maxSecondBlueLevel;
+        secondGreen = minSecondGreenLevel;
+
+        secondAnimationForward = false;
+
         alphaCentX = (getWidth() / 2);
         alphaCentY = (getHeight() / 2);
-        alphaCentRadius = 150;
+        alphaCentRadius = 125;
 
         betelgeuseX = (getWidth() / 2);
-        betelgeuseY = (getHeight() / 2) + 500;
-        betelgeuseRadius = 50;
+        betelgeuseY = (getHeight() - (getHeight() / 8));
+        betelgeuseRadius = 75;
 
         alphaPathEnd = new Point(alphaCentX, alphaCentY + alphaCentRadius);
         alphaPathStart = new Point(betelgeuseX, betelgeuseY - betelgeuseRadius);
         alphaPathCurrent = alphaPathStart;
-
-
-        paint.setStyle(Paint.Style.FILL);
-        canvas.drawColor(Color.TRANSPARENT);
 
         initialized = true;
     }
@@ -120,23 +145,34 @@ public class ClockView extends View {
         if(!initialized)
             init(canvas);
 
+        paint.setStyle(Paint.Style.FILL);
+        canvas.drawColor(Color.BLACK);
+
         calendar = Calendar.getInstance();
         hour = calendar.get(Calendar.HOUR);
         minute = calendar.get(Calendar.MINUTE);
 
         drawBetelgeuse(canvas);
+        if(minute != previousMinute)
+            animatePathToAlpha(canvas);
+        if(!alphaPathAnimating)
+            previousMinute = minute;
+
         drawAlphaCentauri(canvas);
-        animatePathToAlpha(canvas);
+        drawSun(canvas);
         invalidate();
     }
 
     private void drawSun(Canvas canvas) {
+        if(sunColorAnimation) {
+            if(hourAnimateForward) {
 
+            }
+        }
     }
 
     private void drawAlphaCentauri(Canvas canvas) {
-        if(minute != previousMinute) {
-            alphaPathAnimation = true;
+        if(alphaColorAnimation) {
             if (previousMinute == 0)
                 minuteAnimateForward = true;
             else
@@ -158,9 +194,8 @@ public class ClockView extends View {
                 minuteRed = max(minuteRed - minuteRedInterval, 0);
                 minuteGreen = max(minuteGreen - minuteGreenInterval, 0);
             }
-
+            alphaColorAnimation = false;
             Log.d("CLOCKVIEW", String.format("minuteRed = %d minuteBlue = %d minuteGreen = %d", minuteRed, minuteBlue, minuteGreen));
-            previousMinute = minute;
         }
 
 
@@ -169,21 +204,15 @@ public class ClockView extends View {
     }
 
     private void drawBetelgeuse(Canvas canvas) {
-        int interval = 10;
-
         if(secondAnimationForward) {
-            secondBlue = min(secondBlue + interval, 255);
-            secondGreen = min(secondGreen + interval, 255);
-            secondRed = min(secondRed + interval, 255);
-            if(secondBlue >= 255)
+            secondBlue = min(secondBlue + secondBlueAnimationInterval, maxSecondBlueLevel);
+            if(secondBlue >= maxSecondBlueLevel)
                 secondAnimationForward = !secondAnimationForward;
         }
 
         else {
-            secondBlue = max(secondBlue - interval, 0);
-            secondGreen = max(secondGreen - interval, 0);
-            secondRed = max(secondRed - interval, 0);
-            if(secondBlue <= 0)
+            secondBlue = max(secondBlue - secondBlueAnimationInterval, minSecondBlueLevel);
+            if(secondBlue <= minSecondBlueLevel)
                 secondAnimationForward = !secondAnimationForward;
         }
 
@@ -192,21 +221,18 @@ public class ClockView extends View {
     }
 
     private void animatePathToAlpha(Canvas canvas) {
-        if(alphaPathAnimation) {
-            paint.setColor(alphaPathAnimationColor);
-            paint.setStrokeWidth(10f);
-            paint.setStyle(Paint.Style.STROKE);
-            //path.moveTo(alphaPathCurrent.x, alphaPathCurrent.y--);
-            //path.lineTo(alphaPathCurrent.x, alphaPathCurrent.y);
-            //canvas.drawPath(path, paint);
-            canvas.drawLine(alphaPathCurrent.x, alphaPathCurrent.y, alphaPathCurrent.x, alphaPathCurrent.y - alphaLineLength, paint);
-            alphaPathCurrent.y -= alphaPathAnimationInterval;
-            Log.d("CLOCKVIEW", String.format("alphaPathCurrent.y = %d alphaPathEnd.y = %d", alphaPathCurrent.y, alphaPathEnd.y));
-            paint.reset();
-            if (alphaPathCurrent.y <= alphaPathEnd.y + alphaLineLength) {
-                alphaPathAnimation = false;
-                alphaPathCurrent = alphaPathStart;
-            }
+        alphaPathAnimating = true;
+        paint.setColor(rgb(minuteRed, minuteGreen, minuteBlue));
+        paint.setStrokeWidth(12f);
+        paint.setStyle(Paint.Style.STROKE);
+        canvas.drawLine(alphaPathCurrent.x, alphaPathCurrent.y, alphaPathCurrent.x, alphaPathCurrent.y - alphaLineLength, paint);
+        alphaPathCurrent.y -= alphaPathAnimationInterval;
+        Log.d("CLOCKVIEW", String.format("alphaPathCurrent.y = %d alphaPathEnd.y = %d", alphaPathCurrent.y, alphaPathEnd.y));
+        paint.reset();
+        if (alphaPathCurrent.y <= alphaPathEnd.y + alphaLineLength) {
+            alphaPathAnimating = false;
+            alphaColorAnimation = true;
+            alphaPathCurrent = alphaPathStart;
         }
     }
 }
