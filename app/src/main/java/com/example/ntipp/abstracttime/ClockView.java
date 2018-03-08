@@ -14,6 +14,7 @@ import android.view.View;
 
 import java.util.Calendar;
 
+import static android.graphics.Color.YELLOW;
 import static java.lang.Math.min;
 import static java.lang.Math.max;
 import static android.graphics.Color.rgb;
@@ -66,7 +67,8 @@ public class ClockView extends View {
     int sunRadius = 200;
 
     boolean alphaPathAnimation = false;
-    int alphaPathAnimationInterval = 10;
+    float alphaPathAnimationInterval = 2f;
+    float alphaLineLength = 70f;
     int alphaPathAnimationColor = Color.YELLOW;
     Point alphaPathEnd;
     Point alphaPathStart;
@@ -96,10 +98,10 @@ public class ClockView extends View {
 
         alphaCentX = (getWidth() / 2);
         alphaCentY = (getHeight() / 2);
-        alphaCentRadius = 100;
+        alphaCentRadius = 150;
 
         betelgeuseX = (getWidth() / 2);
-        betelgeuseY = (getHeight() / 2);
+        betelgeuseY = (getHeight() / 2) + 500;
         betelgeuseRadius = 50;
 
         alphaPathEnd = new Point(alphaCentX, alphaCentY + alphaCentRadius);
@@ -194,12 +196,14 @@ public class ClockView extends View {
             paint.setColor(alphaPathAnimationColor);
             paint.setStrokeWidth(10f);
             paint.setStyle(Paint.Style.STROKE);
-            canvas.drawPath(path, paint);
-            path.moveTo(alphaPathCurrent.x, alphaPathCurrent.y);
-            alphaPathCurrent.y += alphaPathAnimationInterval;
-            path.lineTo(alphaPathCurrent.x, alphaPathCurrent.y);
+            //path.moveTo(alphaPathCurrent.x, alphaPathCurrent.y--);
+            //path.lineTo(alphaPathCurrent.x, alphaPathCurrent.y);
+            //canvas.drawPath(path, paint);
+            canvas.drawLine(alphaPathCurrent.x, alphaPathCurrent.y, alphaPathCurrent.x, alphaPathCurrent.y - alphaLineLength, paint);
+            alphaPathCurrent.y -= alphaPathAnimationInterval;
+            Log.d("CLOCKVIEW", String.format("alphaPathCurrent.y = %d alphaPathEnd.y = %d", alphaPathCurrent.y, alphaPathEnd.y));
             paint.reset();
-            if (alphaPathCurrent.y >= alphaPathEnd.y) {
+            if (alphaPathCurrent.y <= alphaPathEnd.y + alphaLineLength) {
                 alphaPathAnimation = false;
                 alphaPathCurrent = alphaPathStart;
             }
